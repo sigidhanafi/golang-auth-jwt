@@ -2,30 +2,13 @@ package handler
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
 	"github.com/joho/godotenv"
 )
-
-type auth struct {
-	JwtSecretKey string
-}
-
-func NewAuth() auth {
-	env, err := godotenv.Read(".env")
-	if err != nil {
-		log.Fatal("Error load env file")
-	}
-
-	var auth auth
-	auth.JwtSecretKey = env["JWT_SECRET_KEY"]
-	return auth
-}
 
 var users = map[string]string{
 	"user1": "password1",
@@ -42,17 +25,19 @@ type Claim struct {
 	jwt.RegisteredClaims
 }
 
-func (a *auth) Signin(w http.ResponseWriter, r *http.Request) {
+func Signin(w http.ResponseWriter, r *http.Request) {
 
-	fmt.Println(a.JwtSecretKey)
-
+	env, err := godotenv.Read(".env")
+	if err != nil {
+		log.Fatal("Error load env file")
+	}
 	// set header content type to json
 	// client expected return is json
 	w.Header().Set("Content-Type", "application/json")
 
 	var cred Credential
 
-	err := json.NewDecoder(r.Body).Decode(&cred)
+	err = json.NewDecoder(r.Body).Decode(&cred)
 
 	if err != nil {
 		log.Println(err)
@@ -93,7 +78,7 @@ func (a *auth) Signin(w http.ResponseWriter, r *http.Request) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claim)
 
-	tokenString, err := token.SignedString([]byte(a.JwtSecretKey))
+	tokenString, err := token.SignedString([]byte(env["JWT_SECRET_KEY"]))
 
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
@@ -118,59 +103,10 @@ func (a *auth) Signin(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(response)
 }
 
-func (a *auth) Welcome(w http.ResponseWriter, r *http.Request) {
+func Welcome(w http.ResponseWriter, r *http.Request) {
 	// set header content type to json
 	// client expected return is json
 	w.Header().Set("Content-Type", "application/json")
-
-	requestAuth := r.Header.Get("Authorization")
-
-	if len(requestAuth) <= 0 {
-		w.WriteHeader(http.StatusUnauthorized)
-		response := map[string]interface{}{
-			"status":  "error",
-			"message": "No Authorized",
-		}
-
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-
-	// get token by slicing string
-	requestAuthSlice := strings.Split(requestAuth, "Bearer ")
-	requestToken := requestAuthSlice[1]
-
-	claim := &Claim{}
-
-	token, err := jwt.ParseWithClaims(
-		requestToken,
-		claim,
-		func(token *jwt.Token) (interface{}, error) {
-			return []byte(a.JwtSecretKey), nil
-		},
-	)
-
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		response := map[string]interface{}{
-			"status":  "error",
-			"message": err.Error(),
-		}
-
-		json.NewEncoder(w).Encode(response)
-		return
-	}
-
-	if !token.Valid {
-		w.WriteHeader(http.StatusUnauthorized)
-		response := map[string]interface{}{
-			"status":  "error",
-			"message": "No Authorized",
-		}
-
-		json.NewEncoder(w).Encode(response)
-		return
-	}
 
 	w.WriteHeader(http.StatusOK)
 
