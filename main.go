@@ -8,20 +8,18 @@ import (
 
 func main() {
 
-	mux := http.DefaultServeMux
+	mux := http.NewServeMux()
+
+	// to handle middleware, there are many ways
+	// refers to https://www.alexedwards.net/blog/making-and-using-middleware
+	// refers to https://dasarpemrogramangolang.novalagung.com/B-middleware-using-http-handler.html
+	// choose which one that appropriate to our case
+
 	mux.HandleFunc("/signin", handler.Signin)
-	mux.HandleFunc("/welcome", handler.Welcome)
-
-	var httpHandler http.Handler = mux
-	// add middleware
-	httpHandler = handler.MiddlewareAuth(httpHandler)
-
-	server := new(http.Server)
-	server.Addr = ":8080"
-	server.Handler = httpHandler
+	mux.Handle("/welcome", handler.MiddlewareAuth(http.HandlerFunc(handler.Welcome)))
 
 	log.Println("Server running on port :8080")
-	err := server.ListenAndServe()
+	err := http.ListenAndServe(":8080", mux)
 
 	if err != nil {
 		log.Fatal(err)
